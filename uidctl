@@ -1,0 +1,15 @@
+#!/system/bin/sh
+set -eu
+umask 077
+MODDIR=${0%/*}
+[ "$(id -u)" = 0 ] || { echo 'Root required' >&2; exit 1; }
+STATE=/data/adb/galaxy_watch_nfc_provide
+mkdir -p "$STATE"
+chmod 0700 "$STATE"
+run_helper() {
+    CLASSPATH="$MODDIR/nfc-uid-tools.jar" /system/bin/app_process /system/bin dev.nfctools.uid.UidCommand "$MODDIR" "$@"
+}
+run_helper "$@"
+if [ "${1:-}" = persist ]; then
+    run_helper watch >> "$STATE/watch-launch.log" 2>&1 < /dev/null &
+fi

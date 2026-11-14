@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+/build/
+/dist/
+*.p12
+*.jks
+*.keystore
+*.key
+*.password
+/sign/
+/validation-device.json
+/tests-output/
