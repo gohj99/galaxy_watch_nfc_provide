@@ -38,12 +38,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.module.outputs.tag }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Release $TAG already exists; it will not be recreated."
-          else
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" 2>/dev/null || true)"
+          if [[ -z "$release_json" ]]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "draft_id=" >> "$GITHUB_OUTPUT"
             echo "Release $TAG does not exist; this run will create it."
+          else
+            draft="$(jq -r '.draft' <<< "$release_json")"
+            if [[ "$draft" == true ]]; then
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+              echo "draft_id=$(jq -r '.id' <<< "$release_json")" >> "$GITHUB_OUTPUT"
+              echo "Found an existing draft for $TAG; it will be completed."
+            else
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "draft_id=" >> "$GITHUB_OUTPUT"
+              echo "Release $TAG already exists; it will not be recreated."
+            fi
           fi
       - uses: actions/setup-python@v5
         with:
@@ -82,16 +92,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.module.outputs.tag }}
           VERSION: ${{ steps.module.outputs.version }}
+          DRAFT_ID: ${{ steps.release.outputs.draft_id }}
         run: |
           package="dist/galaxy_watch_nfc_provide-v${VERSION}.zip"
           checksum="${package}.sha256"
           test -f "$package"
           test -f "$checksum"
           test -f dist/build-report.json
-          gh release create "$TAG" \
-            "$package" \
-            "$checksum" \
-            dist/build-report.json \
-            --target "$GITHUB_SHA" \
-            --generate-notes \
-            --title "$TAG"
+          release_id="$DRAFT_ID"
+          if [[ -z "$release_id" ]]; then
+            release_id="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
+              -f tag_name="$TAG" \
+              -f target_commitish="$GITHUB_SHA" \
+              -f name="$TAG" \
+              -F draft=true \
+              -F generate_release_notes=true \
+              --jq '.id')"
+          fi
+          gh release upload "$TAG" "$package" "$checksum" dist/build-report.json --clobber
+          published="$(gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+            -F draft=false)"
+          if [[ "$(jq -r '.immutable' <<< "$published")" != true ]]; then
+            echo "GitHub did not publish an immutable release. Enable repository release immutability first." >&2
+            exit 1
+          fi

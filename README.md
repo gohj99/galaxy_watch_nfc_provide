@@ -17,7 +17,7 @@ galaxy_watch_nfc_provide
 1. Download the ZIP for the version you need from the GitHub **Releases** page. A release asset looks like:
 
    ```text
-   galaxy_watch_nfc_provide-v1.0.6.zip
+   galaxy_watch_nfc_provide-v1.0.7.zip
    ```
 
 2. Install the ZIP in KernelSU or BakaSU.
@@ -102,17 +102,17 @@ Local output is written to `dist/`: the module ZIP, its SHA-256 file, and `build
 GitHub Actions checks pushes to `master`, pull requests, and manual runs. The workflow reads the version from `module.prop` and automatically adds the `v` prefix:
 
 ```text
-module.prop: version=1.0.6
-Git tag:      v1.0.6
+module.prop: version=1.0.7
+Git tag:      v1.0.7
 ```
 
-For a non-PR run, the workflow first checks whether Release `v1.0.6` already exists. If it does not exist, the workflow builds the module, creates tag `v1.0.6` on the current commit, and publishes a GitHub Release. You do not need to create the release tag manually. If the Release already exists, the workflow leaves it unchanged.
+For a non-PR run, the workflow first checks whether Release `v1.0.7` already exists. If it does not exist, the workflow builds the module, creates tag `v1.0.7` on the current commit, and publishes a GitHub Release. You do not need to create the release tag manually. If the Release already exists, the workflow leaves it unchanged.
 
 The workflow publishes these release assets:
 
 ```text
-galaxy_watch_nfc_provide-v1.0.6.zip
-galaxy_watch_nfc_provide-v1.0.6.zip.sha256
+galaxy_watch_nfc_provide-v1.0.7.zip
+galaxy_watch_nfc_provide-v1.0.7.zip.sha256
 build-report.json
 ```
 
