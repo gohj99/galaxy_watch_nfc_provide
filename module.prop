@@ -1,6 +1,6 @@
 id=galaxy_watch_nfc_provide
-name=Galaxy Watch NFC Provider
-version=1.0.0
-versionCode=100
-author=Local adaptation
-description=Device-derived NFC polling provider for KernelSU. Includes optional guarded UID tooling; no device whitelist, no RF/vendor replacement.
+name=Galaxy Watch NFC Provide
+version=1.0.1
+versionCode=101
+author=gohj99
+description=Device-derived NFC polling provider with optional guarded UID tooling. No device whitelist, no RF or vendor replacement.

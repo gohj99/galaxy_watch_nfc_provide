@@ -1,4 +1,4 @@
-# Galaxy Watch NFC Provider
+# Galaxy Watch NFC Provide
 
 这是独立的 KernelSU systemless 模块仓库。模块 ID 固定为：
 

@@ -8,6 +8,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+VERSION = "1.0.1"
 JDK = Path(r"C:\Program Files\Microsoft\jdk-17.0.11.9-hotspot")
 SDK = Path(r"D:\Android\Sdk")
 ANDROID = SDK / "platforms/android-36/android.jar"
@@ -62,7 +63,7 @@ def main():
         "verify.sh": ROOT / "verify.sh",
         "README.md": ROOT / "README.md",
     }
-    package = out / "galaxy_watch_nfc_provide-v1.0.0.zip"
+    package = out / f"galaxy_watch_nfc_provide-v{VERSION}.zip"
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED) as archive:
         for name, source in files.items():
             info = zipfile.ZipInfo(name, date_time=(2026, 11, 14, 0, 0, 0))
@@ -74,6 +75,9 @@ def main():
         assert archive.testzip() is None
     report = {
         "module_id": "galaxy_watch_nfc_provide",
+        "name": "Galaxy Watch NFC Provide",
+        "author": "gohj99",
+        "version": VERSION,
         "artifact": package.name,
         "sha256": hashlib.sha256(package.read_bytes()).hexdigest(),
         "bytes": package.stat().st_size,

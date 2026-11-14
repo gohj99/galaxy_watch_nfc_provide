@@ -6,7 +6,7 @@ SKIPUNZIP=0
 [ -r "$MODPATH/nfc-uid-tools.jar" ] || abort "Missing UID helper"
 . "$MODPATH/lib/reader.sh"
 
-ui_print "- Galaxy Watch NFC Provider 1.0.0"
+ui_print "- Galaxy Watch NFC Provide 1.0.1"
 ui_print "- Module id is fixed: galaxy_watch_nfc_provide"
 ui_print "- No device, Android API, or firmware whitelist"
 ui_print "- Reader overlay uses this device's own NFC stack configuration"
