@@ -1,6 +1,6 @@
 id=galaxy_watch_nfc_provide
 name=Galaxy Watch NFC Provide
-version=1.0.1
-versionCode=101
+version=1.0.2
+versionCode=102
 author=gohj99
 description=Device-derived NFC polling provider with optional guarded UID tooling. No device whitelist, no RF or vendor replacement.

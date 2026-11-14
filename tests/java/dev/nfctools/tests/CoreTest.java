@@ -32,7 +32,8 @@ public final class CoreTest {
         equal(NciCodec.parseGet(NciCodec.decode("0001330408000000")), "08000000");
         for (String bad : new String[]{"", "00013304", "01013300", "00023300", "0001330100", "00013200", "0001330000"}) fails(() -> NciCodec.parseGet(NciCodec.decode(bad)));
         NciCodec.checkSet(NciCodec.decode("0000")); checks++;
-        fails(() -> NciCodec.checkSet(NciCodec.decode("0100"))); fails(() -> NciCodec.checkSet(NciCodec.decode("00")));
+        NciCodec.checkSet(NciCodec.decode("00")); checks++;
+        fails(() -> NciCodec.checkSet(NciCodec.decode("0100")));
         String fixture = new String(Files.readAllBytes(Paths.get(args[0])), StandardCharsets.UTF_8);
         equal(NciCodec.factoryValue(fixture), "");
         fails(() -> NciCodec.factoryValue(fixture.replace("20, 02, 33, 11", "20, 02, 34, 11")));

@@ -38,6 +38,8 @@ su -c '/data/adb/modules/galaxy_watch_nfc_provide/uidctl reset'
 
 `set` 是临时操作；`persist` 才会保存并启动受锁保护、最多重试三次的 watcher；`reset` 关闭持久化并恢复安装时记录的设备默认参数。每次写入均使用三星 `pausePolling(long)`，写后读回校验，失败尝试回滚。不要在钱包、门禁或其他 NFC 事务中操作。控制器读回不等于外部读卡器看到的空口 UID。
 
+部分三星固件对成功的 `CORE_SET_CONFIG` 只返回单字节状态 `00`，helper 将它与标准双字节 `0000` 一样视为成功。
+
 状态目录为 `/data/adb/galaxy_watch_nfc_provide`，其中包含固件指纹和 UID 状态，应保持私有。
 
 ## 构建

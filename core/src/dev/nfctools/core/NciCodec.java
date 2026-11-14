@@ -45,7 +45,9 @@ public final class NciCodec {
         return value;
     }
     public static void checkSet(byte[] response) {
-        if (response == null || response.length != 2 || response[0] != 0 || response[1] != 0)
+        // Samsung firmware variants return either a one-byte status or the
+        // complete two-byte NCI response. Both successful forms start with 0.
+        if (response == null || response.length < 1 || response[0] != 0)
             throw new IllegalArgumentException("CORE_SET_CONFIG was not acknowledged successfully");
     }
     public static byte[] factoryValue(String conf) {
