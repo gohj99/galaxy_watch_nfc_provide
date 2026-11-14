@@ -56,19 +56,19 @@ def main():
 
     files = {
         "module.prop": ROOT / "module.prop",
-        "customize.sh": ROOT / "customize.sh",
-        "service.sh": ROOT / "service.sh",
-        "post-fs-data.sh": ROOT / "post-fs-data.sh",
-        "post-mount.sh": ROOT / "post-mount.sh",
-        "uninstall.sh": ROOT / "uninstall.sh",
-        "nfcconf": ROOT / "nfcconf",
-        "uidctl": ROOT / "uidctl",
+        "customize.sh": ROOT / "scripts/customize.sh",
+        "service.sh": ROOT / "scripts/service.sh",
+        "post-fs-data.sh": ROOT / "scripts/post-fs-data.sh",
+        "post-mount.sh": ROOT / "scripts/post-mount.sh",
+        "uninstall.sh": ROOT / "scripts/uninstall.sh",
+        "nfcconf": ROOT / "scripts/nfcconf",
+        "uidctl": ROOT / "scripts/uidctl",
         "nfc-uid-tools.jar": helper,
         "lib/reader.sh": ROOT / "lib/reader.sh",
         "lib/config.sh": ROOT / "lib/config.sh",
         "lib/routing.sh": ROOT / "lib/routing.sh",
         "system/etc/permissions/nfc-reader-unlock.xml": ROOT / "system/etc/permissions/nfc-reader-unlock.xml",
-        "verify.sh": ROOT / "verify.sh",
+        "verify.sh": ROOT / "scripts/verify.sh",
         "README.md": ROOT / "README.md",
     }
     package = out / f"galaxy_watch_nfc_provide-v{VERSION}.zip"

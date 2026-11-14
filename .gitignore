@@ -1,7 +1,37 @@
-__pycache__/
-*.py[cod]
+# Generated build and release output
 /build/
 /dist/
+/releases/
+*.class
+*.dex
+*.jar
+*.apk
+*.aab
+*.zip
+*.tar
+*.tar.gz
+*.sha256
+build-report.json
+
+# Python tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Java and Android tooling
+.gradle/
+.idea/
+*.iml
+
+# Local test output and reports
+/tests-output/
+*.log
+
+# Local signing material and machine-specific configuration
 *.p12
 *.jks
 *.keystore
@@ -9,4 +39,8 @@ __pycache__/
 *.password
 /sign/
 /validation-device.json
-/tests-output/
+
+# Editor and operating-system metadata
+/.vscode/
+.DS_Store
+Thumbs.db

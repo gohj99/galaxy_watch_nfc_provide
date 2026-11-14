@@ -78,7 +78,7 @@ python tools/test_core.py
 python tools/test_routing.py
 ```
 
-Output: `dist/galaxy_watch_nfc_provide-v1.0.6.zip`, its `.zip.sha256` checksum and `dist/build-report.json`. This is a normal unsigned module ZIP for KernelSU/BakaSU. No signing key, certificate, Gradle project or test APK is needed.
+Output is written to `dist/`: the normal unsigned module ZIP for KernelSU/BakaSU, its `.zip.sha256` checksum and `build-report.json`. These generated files are ignored by Git. Module lifecycle and helper script sources live under `scripts/`; the builder places the required runtime entry points at the module ZIP root. No signing key, certificate, Gradle project or test APK is needed.
 
 Local builds use JDK 17 and Android SDK platform 36 / Build Tools 36.0.0. Set `JAVA_HOME` and `ANDROID_SDK_ROOT` (or `ANDROID_HOME`); the scripts also retain the existing Windows machine paths as fallbacks. Linux and Windows tool names are handled separately.
 
@@ -86,6 +86,10 @@ Routing storage tests cover exact original bytes, root edits, repeat preparation
 
 ## GitHub cloud builds
 
-The workflow in `.github/workflows/build.yml` runs on pushes to `main`, pull requests, `v*` tags and manual **Actions > Build module > Run workflow** requests. It sets up Python, JDK 17 and the Android SDK, runs syntax and behavior checks, builds an unsigned module ZIP, verifies its checksum and uploads the ZIP, checksum and build report under the run's **Artifacts** section.
+The workflow in `.github/workflows/build.yml` runs on pushes to `main`, pull requests, `v*` tags and manual **Actions > Build module > Run workflow** requests. It sets up Python, JDK 17 and the Android SDK, runs syntax and behavior checks, builds an unsigned module ZIP, verifies its checksum and uploads the ZIP, checksum and build report under the run's **Artifacts** section. Tagged builds also create a GitHub Release and attach those three files as release assets.
 
-For a tag build, the tag must match `module.prop` (for example, `v1.0.6`). The workflow only builds and uploads run artifacts; it does not require repository secrets. The test APK remains in its separate project.
+For a tag build, the tag must match `module.prop` (for example, `v1.0.6`). Release metadata and binaries are managed by GitHub; the repository does not keep a `releases/` or `dist/` directory. The workflow uses the built-in `GITHUB_TOKEN` and does not require repository secrets. The test APK remains in its separate project.
+
+## License
+
+This project is licensed under the GNU General Public License version 3 or later. See [`LICENSE`](LICENSE).
