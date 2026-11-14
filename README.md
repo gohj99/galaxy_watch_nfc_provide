@@ -99,14 +99,16 @@ Local output is written to `dist/`: the module ZIP, its SHA-256 file, and `build
 
 ## GitHub Releases
 
-GitHub Actions checks pushes to `master`, pull requests, manual runs, and `v*` tags. A release tag must match the version in `module.prop` exactly:
+GitHub Actions checks pushes to `master`, pull requests, and manual runs. The workflow reads the version from `module.prop` and automatically adds the `v` prefix:
 
 ```text
 module.prop: version=1.0.6
 Git tag:      v1.0.6
 ```
 
-A matching tag builds the module and creates a GitHub Release. The workflow publishes these release assets:
+For a non-PR run, the workflow first checks whether Release `v1.0.6` already exists. If it does not exist, the workflow builds the module, creates tag `v1.0.6` on the current commit, and publishes a GitHub Release. You do not need to create the release tag manually. If the Release already exists, the workflow leaves it unchanged.
+
+The workflow publishes these release assets:
 
 ```text
 galaxy_watch_nfc_provide-v1.0.6.zip
@@ -114,7 +116,7 @@ galaxy_watch_nfc_provide-v1.0.6.zip.sha256
 build-report.json
 ```
 
-The workflow does not upload GitHub Actions **Artifacts**. Release files are managed by GitHub and are not committed under `releases/` or `dist/`.
+Pull requests only run validation and never create tags or releases. The workflow does not upload GitHub Actions **Artifacts**. Release files are managed by GitHub and are not committed under `releases/` or `dist/`.
 
 ## License
 

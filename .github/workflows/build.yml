@@ -3,7 +3,6 @@ name: Build module
 on:
   push:
     branches: [master]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -20,6 +19,32 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Read module version
+        id: module
+        shell: bash
+        run: |
+          version="$(awk -F= '$1 == "version" { print $2; exit }' module.prop | tr -d '\r')"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "module.prop version must be MAJOR.MINOR.PATCH; got: $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Building version $version (v$version)"
+      - name: Check GitHub release
+        id: release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.module.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists; it will not be recreated."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG does not exist; this run will create it."
+          fi
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -32,17 +57,6 @@ jobs:
           packages: ""
       - name: Install Android build dependencies
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-      - name: Validate release tag
-        if: github.ref_type == 'tag'
-        run: |
-          python - <<'PY'
-          import os
-          from pathlib import Path
-          props = dict(line.split("=", 1) for line in Path("module.prop").read_text().splitlines() if "=" in line)
-          expected = "v" + props["version"]
-          if os.environ["GITHUB_REF_NAME"] != expected:
-              raise SystemExit("Tag must match module.prop: " + expected)
-          PY
       - name: Check shell syntax
         run: |
           for script in scripts/customize.sh scripts/service.sh scripts/post-fs-data.sh scripts/post-mount.sh scripts/uninstall.sh scripts/verify.sh scripts/nfcconf scripts/uidctl lib/*.sh; do
@@ -55,17 +69,29 @@ jobs:
       - name: Build unsigned module ZIP
         run: python tools/build_module.py
       - name: Verify ZIP checksums
+        env:
+          VERSION: ${{ steps.module.outputs.version }}
+        run: |
+          package="galaxy_watch_nfc_provide-v${VERSION}.zip"
+          test -f "$package"
+          sha256sum --check "${package}.sha256"
         working-directory: dist
-        run: sha256sum --check galaxy_watch_nfc_provide-*.zip.sha256
       - name: Publish GitHub release
-        if: github.ref_type == 'tag'
+        if: github.event_name != 'pull_request' && steps.release.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.module.outputs.tag }}
+          VERSION: ${{ steps.module.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            dist/galaxy_watch_nfc_provide-*.zip \
-            dist/galaxy_watch_nfc_provide-*.zip.sha256 \
+          package="dist/galaxy_watch_nfc_provide-v${VERSION}.zip"
+          checksum="${package}.sha256"
+          test -f "$package"
+          test -f "$checksum"
+          test -f dist/build-report.json
+          gh release create "$TAG" \
+            "$package" \
+            "$checksum" \
             dist/build-report.json \
-            --verify-tag \
+            --target "$GITHUB_SHA" \
             --generate-notes \
-            --title "$GITHUB_REF_NAME"
+            --title "$TAG"

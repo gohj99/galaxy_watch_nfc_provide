@@ -94,14 +94,16 @@ python tools/test_routing.py
 
 ## GitHub Releases
 
-GitHub Actions 监听 `master`、Pull Request、手动运行和 `v*` tag。tag 必须与 `module.prop` 中的版本号完全一致：
+GitHub Actions 监听 `master`、Pull Request 和手动运行。workflow 会读取 `module.prop` 中的版本号，并自动加上 `v` 前缀：
 
 ```text
 module.prop: version=1.0.6
 Git tag:      v1.0.6
 ```
 
-匹配的 tag 会触发构建并创建 GitHub Release。Release 资产为：
+对于非 Pull Request 运行，workflow 会先检查 `v1.0.6` 这个 Release 是否存在。如果不存在，就构建模块，在当前提交上自动创建 `v1.0.6` tag，并发布 GitHub Release。你不需要手动创建 tag；如果 Release 已存在，workflow 会保持它不变。
+
+Release 资产为：
 
 ```text
 galaxy_watch_nfc_provide-v1.0.6.zip
@@ -109,7 +111,7 @@ galaxy_watch_nfc_provide-v1.0.6.zip.sha256
 build-report.json
 ```
 
-workflow 不会上传 GitHub Actions **Artifacts**。发布文件由 GitHub 管理，不会提交到仓库的 `releases/` 或 `dist/` 目录。
+Pull Request 只执行验证，不会创建 tag 或 Release。workflow 不会上传 GitHub Actions **Artifacts**。发布文件由 GitHub 管理，不会提交到仓库的 `releases/` 或 `dist/` 目录。
 
 ## 许可证
 
