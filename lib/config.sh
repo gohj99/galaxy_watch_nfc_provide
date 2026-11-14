@@ -2,6 +2,7 @@
 # Root-only, systemless NXP configuration storage. Never source the .conf itself.
 gwn_state=/data/adb/galaxy_watch_nfc_provide
 gwn_store=$gwn_state/config
+gwn_module_id=galaxy_watch_nfc_provide
 
 gwn_error() { echo "nfcconf: $*" >&2; return 1; }
 gwn_hash() { sha256sum "$1" | awk '{print $1}'; }
@@ -15,6 +16,22 @@ gwn_relative() {
             printf '%s\n' "${1#/}" ;;
         *) gwn_error "Unsupported configuration path: $1" ;;
     esac
+}
+
+# During an update the new module is commonly unpacked below modules_update
+# while the previous editable copy remains below modules. Prefer that copy so
+# an upgrade cannot replace a root user's NXP edits with firmware defaults.
+gwn_previous_module_source() {
+    gwn_relative_path=$1
+    for gwn_root in /data/adb/modules/$gwn_module_id /data/adb/modules_update/$gwn_module_id; do
+        [ "$gwn_root" = "${MODDIR:-}" ] && continue
+        gwn_candidate=$gwn_root/$gwn_relative_path
+        if [ -f "$gwn_candidate" ] && [ ! -L "$gwn_candidate" ]; then
+            printf '%s\n' "$gwn_candidate"
+            return 0
+        fi
+    done
+    return 1
 }
 
 gwn_check_input() {
@@ -89,9 +106,16 @@ gwn_prepare() {
     gwn_load || return 1
     # On upgrade keep the currently visible edits, but never replace the original backup.
     if [ ! -e "$gwn_source" ]; then
-        gwn_check_input "$gwn_target" || return 1
+        gwn_previous=$(gwn_previous_module_source "$gwn_rel" || true)
+        if [ -n "$gwn_previous" ]; then
+            gwn_check_input "$gwn_previous" || return 1
+            gwn_copy_source=$gwn_previous
+        else
+            gwn_check_input "$gwn_target" || return 1
+            gwn_copy_source=$gwn_target
+        fi
         mkdir -p "${gwn_source%/*}" || return 1
-        cp "$gwn_target" "$gwn_source" || return 1
+        cp "$gwn_copy_source" "$gwn_source" || return 1
     fi
     gwn_permissions || return 1
     echo "CONFIG_PREPARED=$gwn_target"

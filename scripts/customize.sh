@@ -30,27 +30,69 @@ mkdir -p "$MODPATH/backup" || abort "Cannot create configuration backup director
 printf '%s\n' 'Galaxy Watch NFC Provider installation' > "$MODPATH/install-summary.txt" || abort "Cannot write installation summary"
 
 for nru_live in $(nru_config_paths); do
-    [ -f "$nru_live" ] && [ -r "$nru_live" ] || continue
-    if nru_raw=$(nru_read_mask "$nru_live"); then
-        :
-    else
-        nru_status=$?
-        if [ "$nru_status" -eq 10 ]; then
-            ui_print "- Skipping $nru_live (no explicit polling mask)"
-            continue
+    nru_relative=$(nru_module_relative "$nru_live") || abort "Unsupported configuration path"
+    nru_module="$MODPATH/$nru_relative"
+    nru_existing=0
+    nru_previous=
+    if [ -L "$nru_module" ]; then
+        abort "Module configuration must not be a symlink: $nru_module"
+    elif [ -f "$nru_module" ]; then
+        nru_existing=1
+        nru_previous=$nru_module
+    elif nru_previous=$(nru_previous_module_copy "$nru_relative"); then
+        nru_existing=1
+    elif nru_live_is_module_overlay "$nru_live"; then
+        nru_existing=1
+        nru_previous=$nru_live
+    fi
+    if [ "$nru_existing" -eq 1 ]; then
+        if nru_raw=$(nru_read_mask "$nru_previous"); then
+            :
+        else
+            abort "Ambiguous or unsupported POLLING_TECH_MASK in $nru_previous"
         fi
-        abort "Ambiguous or unsupported POLLING_TECH_MASK in $nru_live"
+    else
+        [ -f "$nru_live" ] && [ -r "$nru_live" ] || continue
+        if nru_raw=$(nru_read_mask "$nru_live"); then
+            :
+        else
+            nru_status=$?
+            if [ "$nru_status" -eq 10 ]; then
+                ui_print "- Skipping $nru_live (no explicit polling mask)"
+                continue
+            fi
+            abort "Ambiguous or unsupported POLLING_TECH_MASK in $nru_live"
+        fi
     fi
     nru_numeric=$(nru_mask_number "$nru_raw") || abort "Unsupported numeric polling mask in $nru_live"
-    nru_relative=$(nru_module_relative "$nru_live") || abort "Unsupported configuration path"
     nru_backup="$MODPATH/backup$nru_live"
-    mkdir -p "${nru_backup%/*}" || abort "Cannot create backup path"
-    cp "$nru_live" "$nru_backup" || abort "Cannot back up $nru_live"
-    nru_patch_config "$nru_live" "$MODPATH/$nru_relative" || abort "Cannot safely prepare $nru_live"
-    nru_changed=$(nru_read_mask "$MODPATH/$nru_relative") || abort "Prepared configuration failed verification"
+    if [ "$nru_existing" -eq 0 ]; then
+        [ ! -e "$nru_backup" ] || [ -f "$nru_backup" ] || abort "Invalid existing backup: $nru_backup"
+        mkdir -p "${nru_backup%/*}" || abort "Cannot create backup path"
+        [ -e "$nru_backup" ] || cp "$nru_live" "$nru_backup" || abort "Cannot back up $nru_live"
+    elif [ ! -e "$nru_backup" ]; then
+        if nru_previous_backup=$(nru_previous_backup "$nru_live"); then
+            mkdir -p "${nru_backup%/*}" || abort "Cannot create backup path"
+            cp "$nru_previous_backup" "$nru_backup" || abort "Cannot preserve existing backup"
+        fi
+    fi
+    if [ "$nru_existing" -eq 1 ]; then
+        if [ "$nru_previous" != "$nru_module" ]; then
+            nru_copy_module_copy "$nru_previous" "$nru_module" || abort "Cannot preserve existing configuration for $nru_live"
+        else
+            nru_prepare_module_copy "$nru_live" "$nru_module" || abort "Cannot safely preserve $nru_live"
+        fi
+    else
+        nru_prepare_module_copy "$nru_live" "$nru_module" || abort "Cannot safely prepare $nru_live"
+    fi
+    nru_changed=$(nru_read_mask "$nru_module") || abort "Prepared configuration failed verification"
     printf '%s\n' "$nru_live" >> "$MODPATH/config-paths" || abort "Cannot update configuration manifest"
     printf '%s: %s -> %s\n' "$nru_live" "$nru_raw" "$nru_changed" >> "$MODPATH/install-summary.txt" || abort "Cannot update installation summary"
-    (cd "$MODPATH" && sha256sum "backup$nru_live" "$nru_relative") >> "$MODPATH/install-summary.txt" || abort "Cannot hash configuration files"
+    if [ -f "$nru_backup" ]; then
+        (cd "$MODPATH" && sha256sum "backup$nru_live" "$nru_relative") >> "$MODPATH/install-summary.txt" || abort "Cannot hash configuration files"
+    else
+        printf '%s: module backup not rewritten during upgrade\n' "$nru_live" >> "$MODPATH/install-summary.txt" || abort "Cannot update installation summary"
+    fi
     ui_print "- $nru_live: $nru_raw -> $nru_changed"
     nru_count=$((nru_count + 1))
 done

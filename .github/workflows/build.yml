@@ -75,6 +75,7 @@ jobs:
       - name: Test core and routing configuration storage
         run: |
           python tools/test_core.py
+          python tools/test_reader.py
           python tools/test_routing.py
       - name: Build unsigned module ZIP
         run: python tools/build_module.py

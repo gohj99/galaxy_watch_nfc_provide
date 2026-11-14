@@ -71,8 +71,15 @@ gwr_prepare() {
     # copy; never rewrite an existing root edit or relabel it as the original.
     [ ! -L "$gwr_source" ] || { gwn_error 'Routing module copy must not be a symlink'; return 1; }
     if [ ! -e "$gwr_source" ]; then
+        gwr_previous=$(gwn_previous_module_source 'system/etc/nfc_rule_configs.xml' || true)
+        if [ -n "$gwr_previous" ]; then
+            gwr_check_input "$gwr_previous" || return 1
+            gwr_copy_source=$gwr_previous
+        else
+            gwr_copy_source=$gwr_target
+        fi
         mkdir -p "${gwr_source%/*}" || return 1
-        cp "$gwr_target" "$gwr_source" || return 1
+        cp "$gwr_copy_source" "$gwr_source" || return 1
     fi
     gwr_permissions || return 1
     echo "ROUTING_CONFIG_PREPARED=$gwr_target"
