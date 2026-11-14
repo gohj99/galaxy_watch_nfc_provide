@@ -86,7 +86,7 @@ Routing storage tests cover exact original bytes, root edits, repeat preparation
 
 ## GitHub cloud builds
 
-The workflow in `.github/workflows/build.yml` runs on pushes to `main`, pull requests, `v*` tags and manual **Actions > Build module > Run workflow** requests. It sets up Python, JDK 17 and the Android SDK, runs syntax and behavior checks, builds an unsigned module ZIP, verifies its checksum and uploads the ZIP, checksum and build report under the run's **Artifacts** section. Tagged builds also create a GitHub Release and attach those three files as release assets.
+The workflow in `.github/workflows/build.yml` runs on pushes to `master`, pull requests, `v*` tags and manual **Actions > Build module > Run workflow** requests. It sets up Python, JDK 17 and the Android SDK, runs syntax and behavior checks, builds an unsigned module ZIP, verifies its checksum and uploads the ZIP, checksum and build report under the run's **Artifacts** section. Tagged builds also create a GitHub Release and attach those three files as release assets.
 
 For a tag build, the tag must match `module.prop` (for example, `v1.0.6`). Release metadata and binaries are managed by GitHub; the repository does not keep a `releases/` or `dist/` directory. The workflow uses the built-in `GITHUB_TOKEN` and does not require repository secrets. The test APK remains in its separate project.
 
