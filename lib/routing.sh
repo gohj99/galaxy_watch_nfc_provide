@@ -4,59 +4,27 @@ gwr_target=/system/etc/nfc_rule_configs.xml
 gwr_store=$gwn_state/routing
 gwr_source=$MODDIR/system/etc/nfc_rule_configs.xml
 
-# Supported OEM format: one self-closing rule per line, double-quoted routes.
-# Refuse unfamiliar layouts rather than install a partially edited policy.
-gwr_patch() {
-    gwr_last=$(tail -c 1 "$1") || return 1
-    gwr_newline=0
-    [ -n "$gwr_last" ] || gwr_newline=1
-    awk -v final_newline="$gwr_newline" -v check_only="${3:-0}" '
-        BEGIN {
-            keys[1]="route_aid"; keys[2]="route_iso_dep"
-            keys[3]="route_tech"; keys[4]="route_system_code"
-        }
-        {
-            scan=""; rest=$0
-            while (length(rest)) {
-                if (comment) {
-                    p=index(rest,"-->")
-                    if (!p) { rest=""; break }
-                    rest=substr(rest,p+3); comment=0
-                } else {
-                    p=index(rest,"<!--")
-                    if (!p) { scan=scan rest; rest="" }
-                    else { scan=scan substr(rest,1,p-1); rest=substr(rest,p+4); comment=1 }
-                }
-            }
-            if (scan ~ /<!DOCTYPE|<!ENTITY/) bad=1
-            if (scan ~ /^[[:space:]]*<configurations>[[:space:]]*$/) opened++
-            if (scan ~ /^[[:space:]]*<\/configurations>[[:space:]]*$/) closed++
-            if (scan ~ /^[[:space:]]*<rules>[[:space:]]*$/) in_rules=1
-            if (scan ~ /<rule([[:space:]]|>)/) {
-                rules++
-                if (!in_rules || $0 !~ /^[[:space:]]*<rule[[:space:]][^<>]*\/>[[:space:]]*$/) bad=1
-                for (k=1;k<=4;k++) {
-                    pattern="[[:space:]]" keys[k] "[[:space:]]*=[[:space:]]*\"[^\"]*\""
-                    copy=$0
-                    if (gsub(pattern,"",copy)!=1) { bad=1; continue }
-                    match($0,pattern)
-                    start=RSTART; size=RLENGTH; token=substr($0,start,size)
-                    value=token; sub(/^[^=]*=[[:space:]]*"/,"",value); sub(/"$/,"",value)
-                    if (check_only && value!="DH") bad=1
-                    sub(/"[^"]*"$/,"\"DH\"",token)
-                    $0=substr($0,1,start-1) token substr($0,start+size)
-                }
-            }
-            if (scan ~ /^[[:space:]]*<\/rules>[[:space:]]*$/) in_rules=0
-            if (NR>1) printf "%s\n", previous
-            previous=$0
-        }
-        END {
-            if (NR) printf "%s", previous
-            if (NR && final_newline) printf "\n"
-            if (bad || comment || !rules || opened!=1 || closed!=1 || in_rules) exit 1
-        }
-    ' "$1" > "$2"
+# Store the policy as opaque XML. Routing values belong to root-authorized apps;
+# this is only a bounded format check, not a complete XML/policy validator.
+gwr_check_input() {
+    [ -f "$1" ] && [ -r "$1" ] || {
+        gwn_error 'Routing input must be a readable regular file'; return 1;
+    }
+    gwr_size=$(stat -c %s "$1") || return 1
+    [ "$gwr_size" -gt 0 ] && [ "$gwr_size" -le 131072 ] || {
+        gwn_error 'Routing input must contain 1..131072 bytes'; return 1;
+    }
+    grep -q '<configurations[[:space:]>]' "$1" &&
+    grep -q '</configurations[[:space:]]*>' "$1" || {
+        gwn_error 'Routing input is missing its configurations root'; return 1;
+    }
+}
+
+gwr_permissions() {
+    [ -f "$gwr_source" ] && [ ! -L "$gwr_source" ] || {
+        gwn_error 'Routing module copy must be a regular file, not a symlink'; return 1;
+    }
+    chown 0:0 "$gwr_source" && chmod 0644 "$gwr_source" && chcon "$gwr_context" "$gwr_source"
 }
 
 gwr_load() {
@@ -76,15 +44,10 @@ gwr_load() {
 
 gwr_prepare() {
     if [ ! -f "$gwr_target" ]; then
-        echo 'HOST_ROUTING=not-applicable (no Samsung routing policy)'
+        echo 'ROUTING_CONFIG=not-applicable (no Samsung routing policy)'
         return 0
     fi
-    [ "$(stat -c %s "$gwr_target")" -le 131072 ] || {
-        gwn_error 'Samsung routing policy is unexpectedly large'; return 1;
-    }
-    gwr_patch "$gwr_target" /dev/null || {
-        gwn_error 'Unsupported Samsung routing XML; no routing overlay prepared'; return 1;
-    }
+    gwr_check_input "$gwr_target" || return 1
     if [ ! -e "$gwr_store" ]; then
         gwr_mount_root=$(awk -v p="$gwr_target" '$5==p {v=$4} END {print v}' /proc/1/mountinfo)
         case "$gwr_mount_root" in
@@ -104,32 +67,39 @@ gwr_prepare() {
         fi
     fi
     gwr_load || return 1
-    mkdir -p "${gwr_source%/*}" || return 1
-    gwr_prepared=$gwr_source.new.$$
-    gwr_patch "$gwr_target" "$gwr_prepared" || return 1
-    gwr_patch "$gwr_prepared" /dev/null 1 || return 1
+    # Match NXP configuration handling: copy current bytes only for a new module
+    # copy; never rewrite an existing root edit or relabel it as the original.
     [ ! -L "$gwr_source" ] || { gwn_error 'Routing module copy must not be a symlink'; return 1; }
-    cat "$gwr_prepared" > "$gwr_source" || return 1
-    rm -f "$gwr_prepared"
-    chown 0:0 "$gwr_source" && chmod 0644 "$gwr_source" && chcon "$gwr_context" "$gwr_source" || return 1
-    echo "HOST_ROUTING_PREPARED=$gwr_target"
-    echo 'HOST_ROUTING_DESTINATION=DH (aid, iso_dep, tech, system_code; all existing rules)'
-    echo "HOST_ROUTING_ORIGINAL=$gwr_store/original.xml"
+    if [ ! -e "$gwr_source" ]; then
+        mkdir -p "${gwr_source%/*}" || return 1
+        cp "$gwr_target" "$gwr_source" || return 1
+    fi
+    gwr_permissions || return 1
+    echo "ROUTING_CONFIG_PREPARED=$gwr_target"
+    echo 'ROUTING_CONFIG_POLICY=preserved; edited by root-authorized applications'
+    echo "ROUTING_CONFIG_ORIGINAL=$gwr_store/original.xml"
 }
 
 gwr_status() {
     if [ ! -f "$gwr_target" ]; then
-        echo 'HOST_ROUTING=not-applicable (no Samsung routing policy)'
+        echo 'ROUTING_CONFIG=not-applicable (no Samsung routing policy)'
         return 0
     fi
     gwr_load || return 1
-    echo "HOST_ROUTING_TARGET=$gwr_target"
-    echo "HOST_ROUTING_MODULE_COPY=$gwr_source"
-    echo "HOST_ROUTING_ORIGINAL=$gwr_store/original.xml"
-    gwr_patch "$gwr_target" /dev/null 1 || { gwn_error 'Visible Samsung routes are not all DH'; return 1; }
+    echo "ROUTING_CONFIG_TARGET=$gwr_target"
+    echo "ROUTING_CONFIG_MODULE_COPY=$gwr_source"
+    echo "ROUTING_CONFIG_ORIGINAL=$gwr_store/original.xml"
+    echo "ROUTING_CONFIG_ORIGINAL_SHA256=$(cat "$gwr_store/original.sha256")"
+    echo "ROUTING_CONFIG_CURRENT_SHA256=$(gwn_hash "$gwr_target")"
+    echo "ROUTING_CONFIG_MODULE_SHA256=$(gwn_hash "$gwr_source")"
+    gwr_check_input "$gwr_target" || return 1
+    [ -f "$gwr_source" ] && [ ! -L "$gwr_source" ] || {
+        gwn_error 'Routing module copy is missing or is a symlink'; return 1;
+    }
     [ "$(gwn_identity "$gwr_target")" = "$(gwn_identity "$gwr_source")" ] || {
         gwn_error 'Magic Mount-rs has not activated the Samsung routing overlay; reboot required'; return 1;
     }
-    echo 'HOST_ROUTING_FILE=DH; manager mount matches'
-    echo 'HOST_ROUTING_AIR_UID=not-verified (requires an external reader)'
+    echo 'ROUTING_CONFIG_SAME_INODE=yes'
+    echo 'ROUTING_CONFIG_MOUNT_OWNER=magic_mount_rs'
+    echo 'ROUTING_CONFIG_DESTINATION=not-enforced'
 }

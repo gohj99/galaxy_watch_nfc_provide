@@ -4,11 +4,11 @@ SKIPUNZIP=0
 [ -n "${MODPATH:-}" ] && [ -d "$MODPATH" ] || abort "Missing module installation directory"
 [ -r "$MODPATH/lib/reader.sh" ] || abort "Missing reader helpers"
 [ -r "$MODPATH/lib/config.sh" ] && [ -r "$MODPATH/nfcconf" ] || abort "Missing configuration helpers"
-[ -r "$MODPATH/lib/routing.sh" ] || abort "Missing host routing helpers"
+[ -r "$MODPATH/lib/routing.sh" ] || abort "Missing routing configuration helpers"
 [ -r "$MODPATH/nfc-uid-tools.jar" ] || abort "Missing UID helper"
 . "$MODPATH/lib/reader.sh"
 
-ui_print "- Galaxy Watch NFC Provide 1.0.5"
+ui_print "- Galaxy Watch NFC Provide 1.0.6"
 ui_print "- Module id is fixed: galaxy_watch_nfc_provide"
 ui_print "- No device, Android API, or firmware whitelist"
 ui_print "- Reader overlay uses this device's own NFC stack configuration"
@@ -69,10 +69,10 @@ find "$MODPATH/backup" -type d -exec chmod 0700 {} \;
 find "$MODPATH/backup" -type f -exec chmod 0600 {} \;
 
 # Save an immutable-by-convention original before preparing an editable copy.
-# UID, RF and clock settings are copied unchanged. Samsung default activation
-# routes are separately redirected to DH using the device-derived XML policy.
+# NXP settings and Samsung routing XML are copied unchanged. Applications with
+# root permission choose UID/routing values explicitly after installation.
 sh "$MODPATH/nfcconf" prepare >> "$MODPATH/install-summary.txt" || abort "Cannot safely prepare writable NXP configuration"
-ui_print "- NXP configuration preserved; device-derived host routing overlay prepared"
+ui_print "- Editable NXP and Samsung routing copies prepared without changing their values"
 
 # Capability discovery and CORE_GET_CONFIG only; installation never sends CORE_SET_CONFIG.
 sh "$MODPATH/uidctl" probe > "$MODPATH/install-probe.json" || abort "Incompatible NFC Binder interface"
@@ -83,5 +83,5 @@ else
     ui_print "- Saved device-derived factory NFCID1 using GET only"
 fi
 ui_print "- UID persistence remains disabled until you explicitly run uidctl persist"
-ui_print "- Host routing can affect wallet/off-host cards while this module is enabled"
+ui_print "- Routing values are preserved; root-authorized apps can change them when needed"
 ui_print "- Reboot to activate the module overlays; run verify.sh after reboot"

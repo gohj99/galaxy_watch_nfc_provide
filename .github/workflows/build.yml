@@ -1,0 +1,68 @@
+name: Build module
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: module-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: ""
+      - name: Install Android build dependencies
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Validate release tag
+        if: github.ref_type == 'tag'
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          props = dict(line.split("=", 1) for line in Path("module.prop").read_text().splitlines() if "=" in line)
+          expected = "v" + props["version"]
+          if os.environ["GITHUB_REF_NAME"] != expected:
+              raise SystemExit("Tag must match module.prop: " + expected)
+          PY
+      - name: Check shell syntax
+        run: |
+          for script in customize.sh service.sh post-fs-data.sh post-mount.sh uninstall.sh verify.sh nfcconf uidctl lib/*.sh; do
+            sh -n "$script"
+          done
+      - name: Test core and routing configuration storage
+        run: |
+          python tools/test_core.py
+          python tools/test_routing.py
+      - name: Build unsigned module ZIP
+        run: python tools/build_module.py
+      - name: Verify ZIP checksums
+        working-directory: dist
+        run: sha256sum --check galaxy_watch_nfc_provide-*.zip.sha256
+      - name: Upload module
+        uses: actions/upload-artifact@v4
+        with:
+          name: galaxy_watch_nfc_provide-${{ github.run_number }}
+          path: |
+            dist/galaxy_watch_nfc_provide-*.zip
+            dist/galaxy_watch_nfc_provide-*.zip.sha256
+            dist/build-report.json
+          if-no-files-found: error
