@@ -1,95 +1,121 @@
 # Galaxy Watch NFC Provide
 
-Standalone KernelSU systemless module by **gohj99**. The module ID is fixed:
+[English](README.md) | [简体中文](README.zh-CN.md)
+
+A KernelSU/BakaSU systemless module for making the device's existing NFC configuration editable. It keeps the device's original files backed up, does not hard-code a UID, and does not replace the NFC service.
+
+The module has been tested successfully on a Galaxy Watch 7 44mm. It is designed for Wear OS devices in general, but other watch models and vendors still require their own compatibility checks.
+
+Module ID:
 
 ```text
 galaxy_watch_nfc_provide
 ```
 
-The test APK is a separate project in the adjacent `nfc_tools_test_apk` folder. It is not included in this repository or module ZIP.
+## Install
 
-## Module behavior
+1. Download the ZIP for the version you need from the GitHub **Releases** page. A release asset looks like:
 
-- Copies the device's own `libnfc-nci.conf`, enables polling bits `0x0F`, and declares `android.hardware.nfc`.
-- Keeps an editable module copy of the device's `libnfc-nxp.conf` and a private original backup. An upgrade preserves the currently visible NXP edits, including an explicitly configured UID.
-- On devices with `/system/etc/nfc_rule_configs.xml`, backs up the original and prepares an editable copy without changing any bytes or route destinations. A first installation retains the OEM defaults; upgrades retain the currently visible configuration, including application edits. Devices without this Samsung policy skip this overlay.
-- Includes optional root UID diagnostics and guarded controller operations. No UID is hardcoded in the module. Installation does not issue `CORE_SET_CONFIG`.
+   ```text
+   galaxy_watch_nfc_provide-v1.0.6.zip
+   ```
 
-Magic Mount-rs owns mounting and removal. The module never remounts firmware partitions or creates its own bind mounts. Disable the older `nfc_reader_unlock` module before installing this one, then reboot.
+2. Install the ZIP in KernelSU or BakaSU.
+3. Disable the older `nfc_reader_unlock` module if it is installed.
+4. Reboot the device so the module overlays are mounted.
 
-A root-authorized card-emulation application chooses when to change routing to `DH` (device host), set the desired UID, and restore the previous configuration afterwards. Changing default routes can affect off-host cards. The module provides editable configuration files and does not choose those values automatically or implement MIFARE Classic memory, keys or authentication.
+Magic Mount-rs manages the overlays and their removal. This module does not remount firmware partitions or create its own bind mounts.
 
-On SM-L315F, the user reported repeated phone reads of `09F85906` with a manually configured NXP UID and the v1.0.5 host-routing policy. This is one tested setup, not a guarantee for all firmware or NFC modes.
+## Configuration Files
 
-## Configuration and backups
-
-On the tested Watch7, the editable NXP source is:
+The module creates editable copies of the configuration files below when they exist:
 
 ```text
 /data/adb/modules/galaxy_watch_nfc_provide/system/vendor/etc/libnfc-nxp.conf
-```
-
-The editable Samsung policy source is:
-
-```text
 /data/adb/modules/galaxy_watch_nfc_provide/system/etc/nfc_rule_configs.xml
 ```
 
-Private originals are stored under `/data/adb/galaxy_watch_nfc_provide/config/` and `/data/adb/galaxy_watch_nfc_provide/routing/`, with hashes and firmware fingerprints. Originals are never replaced during ordinary upgrades. Uninstalling and rebooting reveals the untouched firmware files; private backups remain available.
+Original files are kept under:
 
-Files are owned by root with mode `0644` and the original SELinux context. A root-authorized application can write the NXP module copy **in place**. Do not replace it with a rename or `sed -i`, since Magic Mount-rs binds the existing inode. There is no import script or unprivileged write service. Visible file bytes change with in-place writes, but that does not prove the NFC services have reloaded them. A new overlay requires a reboot for manager mounting. NXP configuration reload by NFC off/on was observed on the test watch; Samsung routing policy reload after runtime edits still needs separate verification, so a reboot is the confirmed way to apply both.
+```text
+/data/adb/galaxy_watch_nfc_provide/config/
+/data/adb/galaxy_watch_nfc_provide/routing/
+```
 
-Upgrading from v1.0.5 preserves its currently active `DH` configuration. This release stops enforcing `DH`; it does not silently reset your working setup. An application can restore the backed-up `original.xml` into the existing module source inode when stock routing is wanted.
+Write changes in place. Do not replace a file with `mv` or `sed -i`; Magic Mount-rs binds the existing inode. Upgrades preserve the currently visible configuration.
 
-Read-only verification:
+## Apply Configuration Changes
 
-```sh
+After changing `libnfc-nxp.conf` or `nfc_rule_configs.xml`, reinitialize NFC so the running service reads the new values:
+
+```bash
+su -c 'cmd nfc disable-nfc'
+sleep 2
+su -c 'cmd nfc enable-nfc'
+```
+
+Installing or upgrading the module still requires a reboot to mount new overlays. Reinitializing NFC does not prove that a physical tag UID or a wallet application will work.
+
+## Check the Installation
+
+These commands perform read-only checks of the configuration, mounts, and NFC service:
+
+```bash
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/verify.sh'
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/nfcconf status'
 ```
 
-These check configuration files, mounts and NFC state. They do not measure the air UID or prove wallet compatibility.
+## Optional UID Tool
 
-## Optional UID helper
+The UID tool is read-only unless you explicitly run a mutating command:
 
-```sh
+```bash
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/uidctl probe'
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/uidctl get'
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/uidctl status'
 ```
 
-Experimental mutations accept four-byte hexadecimal values:
+Experimental commands accept a four-byte hexadecimal UID:
 
-```sh
+```bash
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/uidctl set AABBCCDD'
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/uidctl persist AABBCCDD'
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/uidctl reset'
 ```
 
-Persistence is off until explicitly requested. Operations use finite polling pauses, controller readback and bounded rollback. Samsung has one global vendor callback slot; avoid these operations during wallet/card activity. A controller readback is not an air UID measurement.
+Do not run these commands during wallet or other NFC activity. The module saves a device-derived baseline and rejects unsafe UID operations when the vendor configuration hash changes. It does not implement MIFARE Classic storage, keys, or authentication.
 
-The saved factory baseline includes the vendor configuration hash. If you edit `libnfc-nxp.conf`, old SET/persist/reset commands may refuse with `Vendor configuration hash changed`. This is an intentional guard. The installer preserves an existing baseline and does not relabel a custom UID as the factory default. A configuration-only experiment should leave the old UID watcher disabled and keep its original baseline.
+## Build and Test
 
-## Build and validation
+Local builds require JDK 17, Android SDK Platform 36, and Build Tools 36.0.0:
 
-```text
+```bash
 python tools/build_module.py
 python tools/test_core.py
 python tools/test_routing.py
 ```
 
-Output is written to `dist/`: the normal unsigned module ZIP for KernelSU/BakaSU, its `.zip.sha256` checksum and `build-report.json`. These generated files are ignored by Git. Module lifecycle and helper script sources live under `scripts/`; the builder places the required runtime entry points at the module ZIP root. No signing key, certificate, Gradle project or test APK is needed.
+Local output is written to `dist/`: the module ZIP, its SHA-256 file, and `build-report.json`. These generated files are ignored by Git. Source module scripts live in `scripts/`; the builder places the required runtime entry points at the module ZIP root.
 
-Local builds use JDK 17 and Android SDK platform 36 / Build Tools 36.0.0. Set `JAVA_HOME` and `ANDROID_SDK_ROOT` (or `ANDROID_HOME`); the scripts also retain the existing Windows machine paths as fallbacks. Linux and Windows tool names are handled separately.
+## GitHub Releases
 
-Routing storage tests cover exact original bytes, root edits, repeat preparation, upgrade preservation, inode preservation, backup and firmware guards, and devices without a Samsung policy. Core tests exercise the NCI and Type 4 helpers. An external reader is still required to check an air UID.
+GitHub Actions checks pushes to `master`, pull requests, manual runs, and `v*` tags. A release tag must match the version in `module.prop` exactly:
 
-## GitHub cloud builds
+```text
+module.prop: version=1.0.6
+Git tag:      v1.0.6
+```
 
-The workflow in `.github/workflows/build.yml` runs on pushes to `master`, pull requests, `v*` tags and manual **Actions > Build module > Run workflow** requests. It sets up Python, JDK 17 and the Android SDK, runs syntax and behavior checks, builds an unsigned module ZIP, verifies its checksum and uploads the ZIP, checksum and build report under the run's **Artifacts** section. Tagged builds also create a GitHub Release and attach those three files as release assets.
+A matching tag builds the module and creates a GitHub Release. The workflow publishes these release assets:
 
-For a tag build, the tag must match `module.prop` (for example, `v1.0.6`). Release metadata and binaries are managed by GitHub; the repository does not keep a `releases/` or `dist/` directory. The workflow uses the built-in `GITHUB_TOKEN` and does not require repository secrets. The test APK remains in its separate project.
+```text
+galaxy_watch_nfc_provide-v1.0.6.zip
+galaxy_watch_nfc_provide-v1.0.6.zip.sha256
+build-report.json
+```
+
+The workflow does not upload GitHub Actions **Artifacts**. Release files are managed by GitHub and are not committed under `releases/` or `dist/`.
 
 ## License
 
-This project is licensed under the GNU General Public License version 3 or later. See [`LICENSE`](LICENSE).
+Licensed under the GNU General Public License version 3 or later. See `LICENSE`.

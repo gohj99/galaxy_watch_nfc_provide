@@ -57,15 +57,6 @@ jobs:
       - name: Verify ZIP checksums
         working-directory: dist
         run: sha256sum --check galaxy_watch_nfc_provide-*.zip.sha256
-      - name: Upload module
-        uses: actions/upload-artifact@v4
-        with:
-          name: galaxy_watch_nfc_provide-${{ github.run_number }}
-          path: |
-            dist/galaxy_watch_nfc_provide-*.zip
-            dist/galaxy_watch_nfc_provide-*.zip.sha256
-            dist/build-report.json
-          if-no-files-found: error
       - name: Publish GitHub release
         if: github.ref_type == 'tag'
         env:
