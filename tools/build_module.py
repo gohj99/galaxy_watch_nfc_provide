@@ -35,7 +35,7 @@ def main():
         old.unlink()
     for old in dex.glob("*.dex"):
         old.unlink()
-    sources = sorted((ROOT / "core/src").rglob("*.java")) + sorted((ROOT / "uid-src").rglob("*.java"))
+    sources = sorted((ROOT / "core/src").rglob("*.java")) + sorted((ROOT / "uid/src").rglob("*.java"))
     boot = str(ANDROID) + os.pathsep + str(BT / "core-lambda-stubs.jar")
     run([JDK / "bin/javac.exe", "-encoding", "UTF-8", "-source", "8", "-target", "8",
          "-bootclasspath", boot, "-d", classes, *sources])

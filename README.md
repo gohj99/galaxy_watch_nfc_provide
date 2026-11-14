@@ -8,6 +8,8 @@ galaxy_watch_nfc_provide
 
 测试 APK 不在本仓库中，放在旁边的 `nfc_tools_test_apk` 目录。模块可以独立工作，不依赖该 APK。
 
+安装这个模块前先在管理器中禁用旧的 `nfc_reader_unlock`，重启后再安装；两个模块覆盖同一份 NFC feature/轮询路径，不应同时启用。
+
 ## 模块功能
 
 安装时读取设备自己的 `libnfc-nci.conf`，把 `POLLING_TECH_MASK` 与 `0x0F` 做按位或，生成 systemless overlay，并补充基础 `android.hardware.nfc` feature。其他 NFC、RF、时钟、路由和 vendor 配置保持设备原值。
