@@ -4,16 +4,17 @@ umask 077
 MODDIR=$(CDPATH= cd -- "${0%/*}" && pwd) || exit 1
 [ "$(id -u)" = 0 ] || { echo 'Root required' >&2; exit 1; }
 . "$MODDIR/lib/config.sh" || exit 1
+. "$MODDIR/lib/routing.sh" || exit 1
 gwn_command=${1:-status}
 case "$gwn_command" in
     --global) shift; gwn_command=${1:-status} ;;
     prepare) ;;
-    *) exec /system/bin/nsenter -t 1 -m /system/bin/sh "$MODDIR/nfcconf" --global "$@" ;;
+    *) exec /system/bin/nsenter -t 1 -m -- /system/bin/sh "$MODDIR/nfcconf" --global "$@" ;;
 esac
 [ "$#" -eq 0 ] || shift
 case "$gwn_command" in
-    status) gwn_status ;;
-    prepare) gwn_prepare ;;
+    status) gwn_status && gwr_status ;;
+    prepare) gwn_prepare && gwr_prepare ;;
     mount)
         mkdir -p "$gwn_state" || exit 1
         chmod 0700 "$gwn_state" || exit 1
@@ -24,7 +25,7 @@ case "$gwn_command" in
         trap 'rmdir "$gwn_state/config-operation.lock"' EXIT
         trap 'exit 1' HUP INT TERM
         case "$gwn_command" in
-            mount) gwn_mount ;;
+            mount) gwn_mount && gwr_status ;;
         esac
         ;;
     *) echo 'Usage: nfcconf status|mount' >&2; exit 2 ;;

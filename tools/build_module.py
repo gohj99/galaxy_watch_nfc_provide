@@ -8,7 +8,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 JDK = Path(r"C:\Program Files\Microsoft\jdk-17.0.11.9-hotspot")
 SDK = Path(r"D:\Android\Sdk")
 ANDROID = SDK / "platforms/android-36/android.jar"
@@ -64,6 +64,7 @@ def main():
         "nfc-uid-tools.jar": helper,
         "lib/reader.sh": ROOT / "lib/reader.sh",
         "lib/config.sh": ROOT / "lib/config.sh",
+        "lib/routing.sh": ROOT / "lib/routing.sh",
         "system/etc/permissions/nfc-reader-unlock.xml": ROOT / "system/etc/permissions/nfc-reader-unlock.xml",
         "verify.sh": ROOT / "verify.sh",
         "README.md": ROOT / "README.md",

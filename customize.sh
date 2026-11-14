@@ -4,10 +4,11 @@ SKIPUNZIP=0
 [ -n "${MODPATH:-}" ] && [ -d "$MODPATH" ] || abort "Missing module installation directory"
 [ -r "$MODPATH/lib/reader.sh" ] || abort "Missing reader helpers"
 [ -r "$MODPATH/lib/config.sh" ] && [ -r "$MODPATH/nfcconf" ] || abort "Missing configuration helpers"
+[ -r "$MODPATH/lib/routing.sh" ] || abort "Missing host routing helpers"
 [ -r "$MODPATH/nfc-uid-tools.jar" ] || abort "Missing UID helper"
 . "$MODPATH/lib/reader.sh"
 
-ui_print "- Galaxy Watch NFC Provide 1.0.4"
+ui_print "- Galaxy Watch NFC Provide 1.0.5"
 ui_print "- Module id is fixed: galaxy_watch_nfc_provide"
 ui_print "- No device, Android API, or firmware whitelist"
 ui_print "- Reader overlay uses this device's own NFC stack configuration"
@@ -68,13 +69,19 @@ find "$MODPATH/backup" -type d -exec chmod 0700 {} \;
 find "$MODPATH/backup" -type f -exec chmod 0600 {} \;
 
 # Save an immutable-by-convention original before preparing an editable copy.
-# UID, routing, RF and clock settings are copied unchanged.
+# UID, RF and clock settings are copied unchanged. Samsung default activation
+# routes are separately redirected to DH using the device-derived XML policy.
 sh "$MODPATH/nfcconf" prepare >> "$MODPATH/install-summary.txt" || abort "Cannot safely prepare writable NXP configuration"
-ui_print "- Device NXP configuration backed up; Magic Mount-rs overlay prepared"
+ui_print "- NXP configuration preserved; device-derived host routing overlay prepared"
 
 # Capability discovery and CORE_GET_CONFIG only; installation never sends CORE_SET_CONFIG.
 sh "$MODPATH/uidctl" probe > "$MODPATH/install-probe.json" || abort "Incompatible NFC Binder interface"
-sh "$MODPATH/uidctl" capture-default > "$MODPATH/install-default.json" || abort "Cannot safely capture this firmware's factory NFCID1"
-ui_print "- Saved device-derived factory NFCID1 using GET only"
+if [ -f /data/adb/galaxy_watch_nfc_provide/factory.json ]; then
+    ui_print "- Preserved existing factory NFCID1 baseline (including its hash guard)"
+else
+    sh "$MODPATH/uidctl" capture-default > "$MODPATH/install-default.json" || abort "Cannot safely capture this firmware's factory NFCID1"
+    ui_print "- Saved device-derived factory NFCID1 using GET only"
+fi
 ui_print "- UID persistence remains disabled until you explicitly run uidctl persist"
-ui_print "- Reboot to activate the reader overlay; run verify.sh after reboot"
+ui_print "- Host routing can affect wallet/off-host cards while this module is enabled"
+ui_print "- Reboot to activate the module overlays; run verify.sh after reboot"

@@ -103,9 +103,8 @@ gwn_mount_line() {
     awk -v p="$gwn_target" '$5 == p {v=$0} END {print v}' /proc/self/mountinfo
 }
 
-# Magic Mount-rs owns the actual mount. This helper never calls mount(8): the
-# shell's root UID has no CAP_SYS_ADMIN on this device, and a second bind mount
-# would conflict with the metamodule's namespace and lifecycle.
+# Magic Mount-rs owns the actual mount. This helper only verifies its result;
+# a second bind mount would bypass the metamodule's namespace and lifecycle.
 gwn_mount() {
     [ ! -e "$MODDIR/disable" ] && [ ! -e "$MODDIR/remove" ] || {
         gwn_error 'Module is disabled or scheduled for removal'; return 1;
