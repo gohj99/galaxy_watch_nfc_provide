@@ -1,0 +1,34 @@
+#!/system/bin/sh
+set -u
+umask 077
+MODDIR=$(CDPATH= cd -- "${0%/*}" && pwd) || exit 1
+[ "$(id -u)" = 0 ] || { echo 'Root required' >&2; exit 1; }
+. "$MODDIR/lib/config.sh" || exit 1
+gwn_command=${1:-status}
+case "$gwn_command" in
+    --global) shift; gwn_command=${1:-status} ;;
+    prepare) ;;
+    *) exec /system/bin/nsenter -t 1 -m /system/bin/sh "$MODDIR/nfcconf" --global "$@" ;;
+esac
+[ "$#" -eq 0 ] || shift
+case "$gwn_command" in
+    status) gwn_status ;;
+    prepare) gwn_prepare ;;
+    mount|import|restore|unmount)
+        mkdir -p "$gwn_state" || exit 1
+        chmod 0700 "$gwn_state" || exit 1
+        mkdir "$gwn_state/config-operation.lock" 2>/dev/null || {
+            echo 'Another nfcconf operation is running; check config-operation.lock if an earlier process was interrupted' >&2
+            exit 1
+        }
+        trap 'rmdir "$gwn_state/config-operation.lock"' EXIT
+        trap 'exit 1' HUP INT TERM
+        case "$gwn_command" in
+            mount) gwn_mount ;;
+            import) gwn_import "$@" ;;
+            restore) gwn_restore ;;
+            unmount) gwn_unmount ;;
+        esac
+        ;;
+    *) echo 'Usage: nfcconf status|mount|import FILE|restore|unmount' >&2; exit 2 ;;
+esac

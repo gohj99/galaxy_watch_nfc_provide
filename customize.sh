@@ -3,10 +3,11 @@ SKIPUNZIP=0
 
 [ -n "${MODPATH:-}" ] && [ -d "$MODPATH" ] || abort "Missing module installation directory"
 [ -r "$MODPATH/lib/reader.sh" ] || abort "Missing reader helpers"
+[ -r "$MODPATH/lib/config.sh" ] && [ -r "$MODPATH/nfcconf" ] || abort "Missing configuration helpers"
 [ -r "$MODPATH/nfc-uid-tools.jar" ] || abort "Missing UID helper"
 . "$MODPATH/lib/reader.sh"
 
-ui_print "- Galaxy Watch NFC Provide 1.0.1"
+ui_print "- Galaxy Watch NFC Provide 1.0.3"
 ui_print "- Module id is fixed: galaxy_watch_nfc_provide"
 ui_print "- No device, Android API, or firmware whitelist"
 ui_print "- Reader overlay uses this device's own NFC stack configuration"
@@ -58,9 +59,18 @@ done
 set_perm_recursive "$MODPATH" 0 0 0755 0644
 set_perm "$MODPATH/verify.sh" 0 0 0755
 set_perm "$MODPATH/uidctl" 0 0 0755
+set_perm "$MODPATH/nfcconf" 0 0 0755
+set_perm "$MODPATH/post-fs-data.sh" 0 0 0755
+set_perm "$MODPATH/post-mount.sh" 0 0 0755
+set_perm "$MODPATH/uninstall.sh" 0 0 0755
 set_perm "$MODPATH/service.sh" 0 0 0755
 find "$MODPATH/backup" -type d -exec chmod 0700 {} \;
 find "$MODPATH/backup" -type f -exec chmod 0600 {} \;
+
+# Save an immutable-by-convention original before preparing an editable copy.
+# UID, routing, RF and clock settings are copied unchanged.
+sh "$MODPATH/nfcconf" prepare >> "$MODPATH/install-summary.txt" || abort "Cannot safely prepare writable NXP configuration"
+ui_print "- Device NXP configuration backed up; root-writable file mount enabled after boot"
 
 # Capability discovery and CORE_GET_CONFIG only; installation never sends CORE_SET_CONFIG.
 sh "$MODPATH/uidctl" probe > "$MODPATH/install-probe.json" || abort "Incompatible NFC Binder interface"

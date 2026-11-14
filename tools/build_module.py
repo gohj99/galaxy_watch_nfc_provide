@@ -8,7 +8,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 JDK = Path(r"C:\Program Files\Microsoft\jdk-17.0.11.9-hotspot")
 SDK = Path(r"D:\Android\Sdk")
 ANDROID = SDK / "platforms/android-36/android.jar"
@@ -56,9 +56,14 @@ def main():
         "module.prop": ROOT / "module.prop",
         "customize.sh": ROOT / "customize.sh",
         "service.sh": ROOT / "service.sh",
+        "post-fs-data.sh": ROOT / "post-fs-data.sh",
+        "post-mount.sh": ROOT / "post-mount.sh",
+        "uninstall.sh": ROOT / "uninstall.sh",
+        "nfcconf": ROOT / "nfcconf",
         "uidctl": ROOT / "uidctl",
         "nfc-uid-tools.jar": helper,
         "lib/reader.sh": ROOT / "lib/reader.sh",
+        "lib/config.sh": ROOT / "lib/config.sh",
         "system/etc/permissions/nfc-reader-unlock.xml": ROOT / "system/etc/permissions/nfc-reader-unlock.xml",
         "verify.sh": ROOT / "verify.sh",
         "README.md": ROOT / "README.md",
@@ -68,7 +73,7 @@ def main():
         for name, source in files.items():
             info = zipfile.ZipInfo(name, date_time=(2026, 11, 14, 0, 0, 0))
             info.create_system = 3
-            info.external_attr = (stat.S_IFREG | (0o755 if name.endswith(".sh") or name == "uidctl" else 0o644)) << 16
+            info.external_attr = (stat.S_IFREG | (0o755 if name.endswith(".sh") or name in ("uidctl", "nfcconf") else 0o644)) << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(info, source.read_bytes())
     with zipfile.ZipFile(package) as archive:

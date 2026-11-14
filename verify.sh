@@ -29,6 +29,9 @@ while IFS= read -r source; do
     [ "$((number & 15))" -eq 15 ] || result=1
 done < "$MODDIR/config-paths"
 
+echo '--- NXP configuration file mount ---'
+sh "$MODDIR/nfcconf" status || result=1
+
 echo '--- NFC service state (not a physical tag test) ---'
 dumpsys nfc | grep -e '^mState=' -e '^mScreenState=' -e '^mIsReaderOptionEnabled='
 echo 'Use a foreground NFC reader application and a known working tag to test actual reading.'
