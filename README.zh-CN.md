@@ -14,7 +14,7 @@ galaxy_watch_nfc_provide
 
 ## 安装
 
-1. 从 GitHub 的 **Releases** 页面下载对应版本的 ZIP，例如 `galaxy_watch_nfc_provide-v1.0.7.zip`。
+1. 从 GitHub 的 **Releases** 页面下载对应版本的 ZIP，例如 `galaxy_watch_nfc_provide-v1.0.8.zip`。
 2. 在 KernelSU 或 BakaSU 中安装 ZIP。
 3. 如果安装了旧的 `nfc_reader_unlock` 模块，请先停用。
 4. 重启设备，让模块覆盖文件完成挂载。
@@ -97,17 +97,17 @@ python tools/test_routing.py
 GitHub Actions 监听 `master`、Pull Request 和手动运行。workflow 会读取 `module.prop` 中的版本号，并自动加上 `v` 前缀：
 
 ```text
-module.prop: version=1.0.7
-Git tag:      v1.0.7
+module.prop: version=1.0.8
+Git tag:      v1.0.8
 ```
 
-对于非 Pull Request 运行，workflow 会先检查 `v1.0.7` 这个 Release 是否存在。如果不存在，就构建模块，在当前提交上自动创建 `v1.0.7` tag，并发布 GitHub Release。你不需要手动创建 tag；如果 Release 已存在，workflow 会保持它不变。
+对于非 Pull Request 运行，workflow 会先检查 `v1.0.8` 这个 Release 是否存在。如果不存在，就构建模块，在当前提交上自动创建 `v1.0.8` tag，并发布 GitHub Release。你不需要手动创建 tag；如果 Release 已存在，workflow 会保持它不变。
 
 Release 资产为：
 
 ```text
-galaxy_watch_nfc_provide-v1.0.7.zip
-galaxy_watch_nfc_provide-v1.0.7.zip.sha256
+galaxy_watch_nfc_provide-v1.0.8.zip
+galaxy_watch_nfc_provide-v1.0.8.zip.sha256
 build-report.json
 ```
 
