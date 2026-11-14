@@ -16,11 +16,13 @@ galaxy_watch_nfc_provide
 
 模块同时包含实验性的 root UID 接口。安装阶段只做 Binder 能力探测和 `CORE_GET_CONFIG`，不会发送控制器 SET 命令。UID 持久化默认关闭。
 
-## Vendor 配置文件导入
+## Vendor 配置文件挂载
 
-安装后，模块会把设备原厂的 `/vendor/etc/libnfc-nxp.conf` 保存到私有状态目录，并创建同路径的模块副本。早期启动脚本和 `service.sh` 会把模块副本绑定到原路径，再只对这一个文件做 `rw` bind remount；不会把整个 `/vendor` 改成可写。软件继续使用原来的 `/vendor/etc/libnfc-nxp.conf` 路径，不需要知道 `nfcconf` 脚本。
+安装后，模块会把设备原厂的 `/vendor/etc/libnfc-nxp.conf` 保存到私有状态目录，并创建同路径的模块副本。Magic Mount-rs 负责把模块副本挂到原路径；本模块不调用普通 `mount`，也不尝试把整个 `/vendor` 改成可写。Magic Mount-rs 的文件挂载在系统侧保持只读，但底层模块副本位于 `/data`，由 root 软件直接修改该副本后，原路径读取到的内容会随之变化。
 
-因此，能直接以覆盖方式保存的程序可以继续照常写 `/vendor/etc/libnfc-nxp.conf`；写入结果会落到模块副本。脚本只为导入完整文件和处理会先重命名临时文件的编辑器提供接口。
+普通应用没有 root 权限，不能修改模块副本（文件保持 `root:root 0644`）。不提供导入脚本，避免把配置写入接口暴露给未授权软件；需要修改时应由明确获得 root 的管理工具直接改模块副本。
+
+模块副本固定路径为 `/data/adb/modules/galaxy_watch_nfc_provide/system/vendor/etc/libnfc-nxp.conf`。root 软件应对这个文件做原地截断写入；不要用 `mv` 替换文件，因为 Magic Mount-rs 绑定的是原 inode。修改后需让 NFC 服务重新加载配置。
 
 查看状态：
 
@@ -28,21 +30,7 @@ galaxy_watch_nfc_provide
 su -c '/data/adb/modules/galaxy_watch_nfc_provide/nfcconf status'
 ```
 
-导入修改后的完整配置：
-
-```sh
-su -c '/data/adb/modules/galaxy_watch_nfc_provide/nfcconf import /sdcard/libnfc-nxp.conf'
-```
-
-`import` 会先保存当前模块副本，然后把输入内容写入已挂载的同一个 backing inode；不会使用 `mv` 或 `sed -i` 替换挂载点。输入必须是普通文件、大小不超过 128 KiB，并且只接受一个 `NXP_CORE_CONF` 设置。导入成功只表示文件内容已写入，输出中的 `NFC_RELOADED=no` 表示尚未重启 NFC 服务；需要由后续受控流程重新加载配置。
-
-恢复安装时保存的原厂配置：
-
-```sh
-su -c '/data/adb/modules/galaxy_watch_nfc_provide/nfcconf restore'
-```
-
-删除模块时，卸载脚本只撤掉本模块的文件挂载，系统原始 `/vendor/etc/libnfc-nxp.conf` 会重新露出；它不会把修改后的内容写回只读 vendor 分区，也不会执行 NFC 控制器命令。
+删除模块时，Magic Mount-rs 会随模块删除撤掉覆盖，系统原始 `/vendor/etc/libnfc-nxp.conf` 会重新露出；本模块不会把修改后的内容写回只读 vendor 分区，也不会执行 NFC 控制器命令。
 
 没有机型或固件白名单不代表所有 NFC 控制器都兼容。无法安全解析的配置会中止安装，不写入猜测值。
 

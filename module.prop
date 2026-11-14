@@ -1,6 +1,6 @@
 id=galaxy_watch_nfc_provide
 name=Galaxy Watch NFC Provide
-version=1.0.3
-versionCode=103
+version=1.0.4
+versionCode=104
 author=gohj99
-description=Device-derived NFC polling with a root-writable systemless NXP configuration, original backups, and optional guarded UID tooling.
+description=Device-derived NFC polling with a Magic Mount-rs managed NXP configuration copy and optional guarded UID tooling.

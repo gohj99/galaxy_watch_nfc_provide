@@ -8,7 +8,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 JDK = Path(r"C:\Program Files\Microsoft\jdk-17.0.11.9-hotspot")
 SDK = Path(r"D:\Android\Sdk")
 ANDROID = SDK / "platforms/android-36/android.jar"

@@ -7,7 +7,7 @@ SKIPUNZIP=0
 [ -r "$MODPATH/nfc-uid-tools.jar" ] || abort "Missing UID helper"
 . "$MODPATH/lib/reader.sh"
 
-ui_print "- Galaxy Watch NFC Provide 1.0.3"
+ui_print "- Galaxy Watch NFC Provide 1.0.4"
 ui_print "- Module id is fixed: galaxy_watch_nfc_provide"
 ui_print "- No device, Android API, or firmware whitelist"
 ui_print "- Reader overlay uses this device's own NFC stack configuration"
@@ -70,7 +70,7 @@ find "$MODPATH/backup" -type f -exec chmod 0600 {} \;
 # Save an immutable-by-convention original before preparing an editable copy.
 # UID, routing, RF and clock settings are copied unchanged.
 sh "$MODPATH/nfcconf" prepare >> "$MODPATH/install-summary.txt" || abort "Cannot safely prepare writable NXP configuration"
-ui_print "- Device NXP configuration backed up; root-writable file mount enabled after boot"
+ui_print "- Device NXP configuration backed up; Magic Mount-rs overlay prepared"
 
 # Capability discovery and CORE_GET_CONFIG only; installation never sends CORE_SET_CONFIG.
 sh "$MODPATH/uidctl" probe > "$MODPATH/install-probe.json" || abort "Incompatible NFC Binder interface"

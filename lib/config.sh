@@ -103,36 +103,23 @@ gwn_mount_line() {
     awk -v p="$gwn_target" '$5 == p {v=$0} END {print v}' /proc/self/mountinfo
 }
 
+# Magic Mount-rs owns the actual mount. This helper never calls mount(8): the
+# shell's root UID has no CAP_SYS_ADMIN on this device, and a second bind mount
+# would conflict with the metamodule's namespace and lifecycle.
 gwn_mount() {
     [ ! -e "$MODDIR/disable" ] && [ ! -e "$MODDIR/remove" ] || {
         gwn_error 'Module is disabled or scheduled for removal'; return 1;
     }
     gwn_load && gwn_permissions || return 1
     gwn_line=$(gwn_mount_line)
-    if [ "$(gwn_identity "$gwn_target")" != "$(gwn_identity "$gwn_source")" ]; then
-        if [ -n "$gwn_line" ]; then
-            gwn_root=$(printf '%s\n' "$gwn_line" | awk '{print $4}')
-            case "$gwn_root" in
-                */galaxy_watch_nfc_provide/*) ;;
-                *) gwn_error 'Another mount owns the target file; refusing to replace it'; return 1 ;;
-            esac
-        fi
-        mount -o bind "$gwn_source" "$gwn_target" || return 1
-    elif [ -z "$gwn_line" ]; then
-        gwn_error 'Expected a file mount at the target'; return 1
-    fi
-    # Only remount this file's bind; the vendor filesystem remains read-only.
-    mount -o remount,bind,rw "$gwn_target" || return 1
-    gwn_line=$(gwn_mount_line)
-    gwn_flags=$(printf '%s\n' "$gwn_line" | awk '{print $6}')
-    case ",$gwn_flags," in
-        *,rw,*) ;;
-        *) gwn_error 'Target bind mount is still read-only'; return 1 ;;
-    esac
     [ "$(gwn_identity "$gwn_target")" = "$(gwn_identity "$gwn_source")" ] || {
-        gwn_error 'Target and module copy are not the same inode'; return 1;
+        gwn_error 'Magic Mount-rs has not mounted the module copy at the target'; return 1;
     }
-    echo "CONFIG_WRITABLE=$gwn_target"
+    [ -n "$gwn_line" ] || { gwn_error 'Target file mount is not visible'; return 1; }
+    echo "CONFIG_SOURCE_WRITABLE=$gwn_source"
+    echo "CONFIG_TARGET=$gwn_target"
+    echo 'CONFIG_MOUNT_OWNER=magic_mount_rs'
+    echo 'CONFIG_TARGET_MOUNT=read-only-by-manager; edit the module source inode'
 }
 
 gwn_status() {
@@ -150,55 +137,4 @@ gwn_status() {
     fi
     echo "FILE_MOUNT=$(gwn_mount_line)"
     ls -lZ "$gwn_target"
-}
-
-gwn_import() {
-    [ "$#" -eq 1 ] || { gwn_error 'Usage: nfcconf import /path/to/edited.conf'; return 1; }
-    gwn_load && gwn_check_input "$1" || return 1
-    # Snapshot first, including when input is the mounted file or module copy.
-    gwn_input=$gwn_store/.import.$$
-    cp "$1" "$gwn_input" && chmod 0600 "$gwn_input" || return 1
-    if ! gwn_mount; then rm -f "$gwn_input"; return 1; fi
-    cp "$gwn_source" "$gwn_store/last-good.conf" && chmod 0600 "$gwn_store/last-good.conf" || {
-        rm -f "$gwn_input"; return 1;
-    }
-    gwn_expected=$(gwn_hash "$gwn_input")
-    # Do not use mv, sed -i or atomic replacement on the mounted backing inode.
-    if cat "$gwn_input" > "$gwn_source" &&
-       [ "$(gwn_hash "$gwn_source")" = "$gwn_expected" ] &&
-       [ "$(gwn_hash "$gwn_target")" = "$gwn_expected" ]; then
-        sync
-        rm -f "$gwn_input"
-        echo 'CONFIG_IMPORTED=yes'
-        echo 'NFC_RELOADED=no'
-    else
-        cat "$gwn_store/last-good.conf" > "$gwn_source"
-        rm -f "$gwn_input"
-        gwn_error 'Import failed; attempted to restore the previous contents'
-        return 1
-    fi
-}
-
-gwn_restore() {
-    gwn_load || return 1
-    gwn_import "$gwn_store/original.conf"
-}
-
-gwn_unmount() {
-    # For uninstall do not depend on firmware fingerprint or a valid edited copy.
-    [ -r "$gwn_store/target-path" ] || return 0
-    gwn_target=$(cat "$gwn_store/target-path") || return 1
-    gwn_relative "$gwn_target" > /dev/null || return 1
-    gwn_tries=0
-    while [ "$gwn_tries" -lt 8 ]; do
-        gwn_line=$(gwn_mount_line)
-        [ -n "$gwn_line" ] || break
-        gwn_root=$(printf '%s\n' "$gwn_line" | awk '{print $4}')
-        case "$gwn_root" in
-            */galaxy_watch_nfc_provide/*) umount "$gwn_target" || return 1 ;;
-            *) break ;;
-        esac
-        gwn_tries=$((gwn_tries + 1))
-    done
-    echo "CONFIG_UNMOUNTED=$gwn_target"
 }

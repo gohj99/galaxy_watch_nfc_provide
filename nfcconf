@@ -14,7 +14,7 @@ esac
 case "$gwn_command" in
     status) gwn_status ;;
     prepare) gwn_prepare ;;
-    mount|import|restore|unmount)
+    mount)
         mkdir -p "$gwn_state" || exit 1
         chmod 0700 "$gwn_state" || exit 1
         mkdir "$gwn_state/config-operation.lock" 2>/dev/null || {
@@ -25,10 +25,7 @@ case "$gwn_command" in
         trap 'exit 1' HUP INT TERM
         case "$gwn_command" in
             mount) gwn_mount ;;
-            import) gwn_import "$@" ;;
-            restore) gwn_restore ;;
-            unmount) gwn_unmount ;;
         esac
         ;;
-    *) echo 'Usage: nfcconf status|mount|import FILE|restore|unmount' >&2; exit 2 ;;
+    *) echo 'Usage: nfcconf status|mount' >&2; exit 2 ;;
 esac
