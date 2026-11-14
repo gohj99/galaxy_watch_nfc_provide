@@ -3,7 +3,7 @@ schemaVersion: 1
 id: galaxy_watch_nfc_provide
 name: Galaxy Watch NFC Provide
 summary: Editable device NFC configuration for KernelSU and BakaSU on Wear OS devices.
-description: A systemless NFC configuration module with backups and optional UID diagnostics.
+description: README.md
 license: GPL-3.0-or-later
 homepage: https://github.com/gohj99/galaxy_watch_nfc_provide
 support: https://github.com/gohj99/galaxy_watch_nfc_provide/issues
