@@ -39,7 +39,7 @@ jobs:
           TAG: ${{ steps.module.outputs.tag }}
         run: |
           release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" 2>/dev/null || true)"
-          if [[ -z "$release_json" ]]; then
+          if [[ -z "$release_json" || "$(jq -r 'has("id")' <<< "$release_json")" != true ]]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "draft_id=" >> "$GITHUB_OUTPUT"
             echo "Release $TAG does not exist; this run will create it."
